@@ -19,7 +19,8 @@ int pack(const char *path)
 	}
 
 	char binPath[MAX_PATH_LENGTH];
-	snprintf(binPath, sizeof(binPath), "%s.asset", path);
+	char *slash = strrchr(path, '\\');
+	snprintf(binPath, sizeof(binPath), "%s%s.asset", path, slash);
 
 	FILE *bin = fopen(binPath, "wb");
 
@@ -34,29 +35,33 @@ int pack(const char *path)
 		if(strstr(files->d_name, ".png") != NULL)
 		{
 			char filePath[MAX_PATH_LENGTH];
-			snprintf(filePath, sizeof(filePath), "%s/%s", path, files->d_name);
+			snprintf(filePath, sizeof(filePath), "%s\\%s", path, files->d_name);
 
-			FILE *photo = fopen(filePath, "rb");
+			FILE *file = fopen(filePath, "rb");
 
-			if(photo == NULL)
+			if(file == NULL)
 			{
-				perror("Error opening a photo file");
+				perror("Error opening a file");
 				return -1;
 			}
 
-			fseek(photo, 0, SEEK_END);
-			long size = ftell(photo);
-			fseek(photo, 0, SEEK_SET);
+			char skip = '\O';
+			fwrite(&skip, sizeof(skip), 1, bin);
 
+			char name[255];
+			strncpy(name, files->d_name, sizeof(name));
+			fwrite(&name, sizeof(name), 1, bin);
+
+			fseek(file, 0, SEEK_END);
+			long size = ftell(file);
+			fseek(file, 0, SEEK_SET);
 			fwrite(&size, sizeof(size), 1, bin);
 
 			char data[size];
-			fread(data, 1, size, photo);
+			fread(&data, 1, sizeof(data), file);
+			fwrite(&data, 1, sizeof(data), bin);
 
-			fwrite(files->d_name, sizeof(files->d_name), 1, bin);
-			fwrite(data, 1, size, bin);
-
-			fclose(photo);
+			fclose(file);
 		}
 	}
 
@@ -67,48 +72,65 @@ int pack(const char *path)
 
 int unpack(const char *path)
 {
-	char binPath[MAX_PATH_LENGTH];
-	snprintf(binPath, sizeof(binPath), "%s.asset", path);
+	DIR *dir;
+	struct dirent *bins;
+	dir = opendir(path);
 
-	FILE *bin = fopen(binPath, "rb");
-
-	if(bin == NULL)
+	if(dir == NULL)
 	{
-		perror("Error opening binary file");
+		perror("Error opening directory");
 		return -1;
 	}
 
-	struct stat st = {0};
-
-	if(stat(path, &st) == -1) mkdir(path);
-
-	while(!feof(bin))
+	while((bins = readdir(dir)) != NULL)
 	{
-		long size;
-		fread(&size, sizeof(size), 1, bin);
-
-		char name[256];
-		fread(name, sizeof(name), 1, bin);
-
-		char filePath[MAX_PATH_LENGTH];
-		snprintf(filePath, sizeof(filePath), "%s/%s", path, name);
-
-		FILE *photo = fopen(filePath, "wb");
-
-		if(photo == NULL)
+		if(strstr(bins->d_name, ".asset") != NULL)
 		{
-			perror("Error creating photo file");
-			return -1;
+			char binPath[MAX_PATH_LENGTH];
+			snprintf(binPath, sizeof(binPath), "%s\\%s", path, bins->d_name);
+
+			FILE *bin = fopen(binPath, "rb");
+
+			if(bin == NULL)
+			{
+				perror("Error opening binary file");
+				return -1;
+			}
+
+			while(1)
+			{
+				char skip;
+				if((fread(&skip, sizeof(skip), 1, bin)) != 1) break;
+
+				char name[255];
+				if((fread(&name, sizeof(name), 1, bin)) != 1) break;
+
+				char filePath[MAX_PATH_LENGTH];
+				snprintf(filePath, sizeof(filePath), "%s\\%s", path, name);
+
+				FILE *file = fopen(filePath, "wb");
+
+				if(file == NULL)
+				{
+					perror("Error creating a file");
+					return -1;
+				}
+
+				long size;
+				fread(&size, sizeof(size), 1, bin);
+
+				char data[size];
+				fread(&data, 1, sizeof(data), bin);
+
+				fwrite(&data, 1, sizeof(data), file);
+				fclose(file);
+			}
+
+			fclose(bin);
 		}
-
-		char data[size];
-		fread(data, 1, size, bin);
-
-		fwrite(data, 1, size, photo);
-		fclose(photo);
 	}
 
-	fclose(bin);
+
 	return 0;
 }
 
@@ -157,4 +179,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Unknown command: %s\n", argv[1]);
 		return -1;
 	}
+
+	system("pause");
 }
