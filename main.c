@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <string.h>
+
 #include <dirent.h>
 #include <getopt.h>
+#include <libgen.h>
 
 #define MAX_PATH_LENGTH 256
 #define WRONG_SYNTAX fprintf(stderr, "Wrong syntax use required arg [pack,unpack] and additional [filter][name][remove][dir]\n")
@@ -151,23 +154,41 @@
 //	return 0;
 //}
 
+char *getpPathFromName(const char *name)
+{
+	char path[MAX_PATH_LENGTH];
 
+	char temp[strlen(name)];
+	strncpy(temp, name, sizeof(temp));
+	char *token = strtok(temp, "\\");
+
+	while(token != NULL)
+	{
+		snprintf(path, sizeof(path), "\\%s", token);
+		token = strtok(NULL, "\\");
+	}
+
+	return path;
+}
+
+#define EMPTY_ARG (remove == 0 && filter == NULL && name == NULL && path == NULL)
+#define NOT_EMPTY_ARG (remove != 0 || filter != NULL || name != NULL || path != NULL)
 
 int main(int argc, char *argv[])
 {
 	int action = 0;
 	char *filter = NULL;
-	//char *path = NULL;
 	char *name = NULL;
 	int remove = 0;
+	int size = 10;
 
-	char *path[argc];
-	memset(path, 0, sizeof(path[0]) * argc);
+	char *path = NULL;
 
 	struct option data[] = {
 		{"pack", no_argument, 0, 'p'},
 		{"unpack", no_argument, 0, 'u'},
 		{"name", required_argument, 0, 'n'},
+		{"size", required_argument, 0, 's'},
 		{"filter", required_argument, 0, 'f'},
 		{"remove", no_argument, &remove, 'r'},
 		{"dir", required_argument, 0, 'd'},
@@ -175,7 +196,7 @@ int main(int argc, char *argv[])
 	};
 
 	int opt;
-	while((opt = getopt_long(argc, argv, "pun:f:rd:", data, NULL)) != -1)
+	while((opt = getopt_long(argc, argv, "pun:f:s:rd:", data, NULL)) != -1)
 	{
 		switch(opt)
 		{
@@ -191,8 +212,10 @@ int main(int argc, char *argv[])
 			case 'f':
 				filter = optarg;
 				break;
+			case 's':
+				size = atoi(optarg);
 			case 'd':
-				path[0] = optarg;
+				path = optarg;
 				break;
 			default:
 				fprintf(stderr, "Unknown option: %c\n", opt);
@@ -200,57 +223,71 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(action == 0 && remove == 0 && !filter && !name && !path[0])
+	char *arg[(action == 0) ? argc : 1];
+
+	if(action == 0 && argc == 1) // не вказан
 	{
 		WRONG_SYNTAX;
 		return -1;
 	}
-	else if(action == 0 && optind < argc)
+	else
 	{
-		if(remove != 0 || filter || name || path[0])
+		if(action != 0 && NOT_EMPTY_ARG) // вказан + аргументи
 		{
-			WRONG_SYNTAX;
-			return -1;
-		}
-		else
-		{
-			for(int i = optind; i < argc; i++)
+			// туто дивимось чого не хватає чи є path
+
+			if(path == NULL)
 			{
-				path[i] = argv[i];
+
 			}
+
+			//
 		}
-	}
-	else if(action != 0 && remove == 0 && !filter && !name && !path[0])
-	{
-		DIR *cwd;
-		struct dirent *files;
-
-		cwd = opendir(".");
-
-		while((files = readdir(cwd)) != NULL)
+		else if(action != 0 && argc == 2) // вказаний
 		{
 			if(action == 1)
 			{
 
 			}
-			else if(strstr(files->d_name, ".don" ) != NULL)
+			else
 			{
 
 			}
 		}
-	}
+		else if(action != 0 && EMPTY_ARG && argc > 2) // вказан + файли
+		{
 
-//	if(optind < argc)
-//	{
-//		for(int i = optind; i < argc; i++)
-//		{
-//			printf("%s: \n", argv[i]);
-//		}
-//	}
-//	else
-//	{
-//		printf("suka kto tebe v ruki tal etu progu.\n");
-//	}
+			if(action == 1)
+			{
+
+			}
+			else
+			{
+
+			}
+			for(int i = optind + 1; i < argc; i++)
+			{
+				arg[i] = argv[i];
+
+				if((strstr(argv[i], ".don")) != NULL) action = 2;
+			}
+		}
+		else if(action == 0 && EMPTY_ARG) // не вказан + файли
+		{
+			action = 1;
+			for(int i = optind; i < argc; i++)
+			{
+				arg[i] = argv[i];
+										// переделать шоб або те або те
+				if((strstr(argv[i], ".don")) != NULL) action = 2;
+			}
+		}
+		else if(action == 0 && NOT_EMPTY_ARG) // не вказан + аргументи
+		{
+			WRONG_SYNTAX;
+			return -1;
+		}
+	}
 
 	return 0;
 }
