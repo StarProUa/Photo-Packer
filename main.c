@@ -8,7 +8,12 @@
 #include <libgen.h>
 
 #define MAX_PATH_LENGTH 256
-#define WRONG_SYNTAX fprintf(stderr, "Wrong syntax use required arg [pack,unpack] and additional [filter][name][remove][dir]\n")
+
+#define WRONG_SYNTAX \
+fprintf(stderr, "Wrong syntax use required arg [pack,unpack] and additional [filter][name][remove][dir]\n")
+
+#define FILE_OPEN(file, path) \
+if(file == NULL) { fprintf(stderr, "Error opening file: %s", path); getchar(); return ;}
 
 void getDirFromPath(const char *path, char *dir)
 {
@@ -48,13 +53,9 @@ void pack(FILE *don, const char *path, char *name)
 {
 	FILE *file = fopen(path, "rb");
 
-	if(file == NULL)
-	{
-		fprintf(stderr, "Error to open .don : %s\n", path);
-		return ;
-	}
+	FILE_OPEN(file, path);
 
-	char skip = '\O';
+	char skip = '$';
 
 	long size;
 	getSizeFile(file, &size);
@@ -66,8 +67,6 @@ void pack(FILE *don, const char *path, char *name)
 
 	char fname[MAX_PATH_LENGTH];
 	strcpy(fname, name);
-
-	printf("fname = %s", fname);
 
 	fwrite(&fname, 1, MAX_PATH_LENGTH, don);
 
@@ -82,13 +81,7 @@ void unpack(const char *dpath)
 {
 	FILE *don = fopen(dpath, "rb");
 
-	printf("don path = %s\n", dpath);
-
-	if(don == NULL)
-	{
-		fprintf(stderr, "Error to open .don : %s\n", dpath);
-		return ;
-	}
+	FILE_OPEN(don, dpath);
 
 	while(1)
 	{
@@ -97,8 +90,6 @@ void unpack(const char *dpath)
 
 		char name[MAX_PATH_LENGTH];
 		if((fread(&name, sizeof(name), 1, don)) != 1) break;
-
-		printf("file name = %s\n", name);
 
 		long size;
 		if((fread(&size, sizeof(size), 1, don)) != 1) break;
@@ -113,15 +104,12 @@ void unpack(const char *dpath)
 		char path[strlen(dir) + strlen(name) + 6];
 		snprintf(path, sizeof(path), "%s\\%s", dir, name);
 
-		printf("path file = %s\n", path);
-
 		FILE *file = fopen(path, "wb");
 
 		if(file == NULL)
 		{
-			fprintf(stderr, "Error to open .don : %s\n", dpath);
 			fclose(don);
-			return ;
+			FILE_OPEN(file, path);
 		}
 
 		fwrite(&data, 1, sizeof(data), file);
@@ -138,36 +126,24 @@ void withArg(const int *action, char *dir, const int *argc, char *argv[],
 	DIR *folder;
 	struct dirent *files;
 
-	if(strcmp(dir, "") == 0)
-	{
-		getcwd(dir, MAX_PATH_LENGTH);
-	}
+	if(strcmp(dir, "") == 0) getcwd(dir, MAX_PATH_LENGTH);
 
 	folder = opendir(dir);
 
-	if(folder == NULL)
-	{
-		return ;
-	}
+	FILE_OPEN(folder, dir);
 
 	if((*action) == 1)
 	{
 		FILE *don;
 
-		if(strcmp(name, "") == 0)
-		{
-			getNameFromDir(dir, name);
-		}
+		if(strcmp(name, "") == 0) getNameFromDir(dir, name);
 
 		char dpath[strlen(dir) + strlen(name) + 6];
 		snprintf(dpath, sizeof(dpath), "%s\\%s.don", dir, name);
 
 		don = fopen(dpath, "wb");
 
-		if(don == NULL)
-		{
-			return ;
-		}
+		FILE_OPEN(don, dpath);
 
 		while((files = readdir(folder)) != NULL)
 		{
@@ -177,16 +153,12 @@ void withArg(const int *action, char *dir, const int *argc, char *argv[],
 
 			if(filter == NULL ? "1" : strstr(files->d_name, filter))
 			{
-
-				printf("name = %s\n", files->d_name);
 				char fpath[strlen(dir) + strlen(files->d_name) + 5];
 				snprintf(fpath, sizeof(fpath), "%s\\%s", dir, files->d_name);
+
 				pack(don, fpath, files->d_name);
 
-				if(*erase)
-				{
-					remove(fpath);
-				}
+				if(*erase) remove(fpath);
 			}
 		}
 
@@ -201,12 +173,10 @@ void withArg(const int *action, char *dir, const int *argc, char *argv[],
 			{
 				char dpath[strlen(dir) + strlen(files->d_name) + 5];
 				snprintf(dpath, sizeof(dpath), "%s\\%s", dir, files->d_name);
+
 				unpack(dpath);
 
-				if(*erase)
-				{
-					remove(dpath);
-				}
+				if(*erase) remove(dpath);
 			}
 		}
 	}
@@ -225,20 +195,12 @@ void withoutArg(const int *action, char *dir, const int *argc, char *argv[], int
 		char name[MAX_PATH_LENGTH];
 		getNameFromPath(dir, name);
 
-		printf("name don = %s\n", name);
-
 		char path[strlen(dir) + strlen(name) + 5];
 		sprintf(path, "%s\\%s.don", dir, name);
 
-		printf("path don = %s\n", path);
-
 		don = fopen(path, "wb");
 
-		if(don == NULL)
-		{
-			fprintf(stderr, "Error to open .don : %s\n", path);
-			return ;
-		}
+		FILE_OPEN(don, path);
 
 		for(int i = start; i < (*argc); i++)
 		{
@@ -353,6 +315,5 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	getchar();
 	return 0;
 }
