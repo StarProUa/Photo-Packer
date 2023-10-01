@@ -10,193 +10,283 @@
 #define MAX_PATH_LENGTH 256
 #define WRONG_SYNTAX fprintf(stderr, "Wrong syntax use required arg [pack,unpack] and additional [filter][name][remove][dir]\n")
 
-//int pack(const char *path, const char *filter)
-//{
-//	DIR *dir;
-//	struct dirent *files;
-//	dir = opendir(path);
-
-//	if(dir == NULL)
-//	{
-//		perror("Error opening directory");
-//		return -1;
-//	}
-
-//	char binPath[MAX_PATH_LENGTH];
-//	char binName[MAX_PATH_LENGTH - strlen(path) - strlen(filter)];
-
-//	char temp[strlen(path)];
-//	strncpy(temp, path, sizeof(temp));
-//	char *token = strtok(temp, "\\");
-
-//	while(token != NULL)
-//	{
-//		snprintf(binName, sizeof(binName), "\\%s", token);
-//		//strncpy(binName, token, sizeof(binName));
-//		token = strtok(NULL, "\\");
-//	}
-
-//	snprintf(binPath, sizeof(binPath), "%s%s.asset", path, binName);
-
-//	FILE *file = fopen("debug.txt", "w");
-//	fprintf(file, "%s", binName);
-//	fclose(file);
-
-//	FILE *bin = fopen(binPath, "wb");
-
-//	if(bin == NULL)
-//	{
-//		perror("Error creating binary file");
-//		return -1;
-//	}
-
-//	while((files = readdir(dir)) != NULL)
-//	{
-//		if(strstr(files->d_name, filter) != NULL)
-//		{
-//			char filePath[MAX_PATH_LENGTH];
-//			snprintf(filePath, sizeof(filePath), "%s\\%s", path, files->d_name);
-
-//			FILE *file = fopen(filePath, "rb");
-
-//			if(file == NULL)
-//			{
-//				perror("Error opening a file");
-//				return -1;
-//			}
-
-//			char skip = '\O';
-//			fwrite(&skip, sizeof(skip), 1, bin);
-
-//			char name[255];
-//			strncpy(name, files->d_name, sizeof(name));
-//			fwrite(&name, sizeof(name), 1, bin);
-
-//			fseek(file, 0, SEEK_END);
-//			long size = ftell(file);
-//			fseek(file, 0, SEEK_SET);
-//			fwrite(&size, sizeof(size), 1, bin);
-
-//			char data[size];
-//			fread(&data, 1, sizeof(data), file);
-//			fwrite(&data, 1, sizeof(data), bin);
-
-//			fclose(file);
-//		}
-//	}
-
-//	closedir(dir);
-//	fclose(bin);
-//	return 0;
-//}
-
-//int unpack(const char *path)
-//{
-//	DIR *dir;
-//	struct dirent *bins;
-//	dir = opendir(path);
-
-//	if(dir == NULL)
-//	{
-//		perror("Error opening directory");
-//		return -1;
-//	}
-
-//	while((bins = readdir(dir)) != NULL)
-//	{
-//		if(strstr(bins->d_name, ".asset") != NULL)
-//		{
-//			char binPath[MAX_PATH_LENGTH];
-//			snprintf(binPath, sizeof(binPath), "%s\\%s", path, bins->d_name);
-
-//			FILE *bin = fopen(binPath, "rb");
-
-//			if(bin == NULL)
-//			{
-//				perror("Error opening binary file");
-//				return -1;
-//			}
-
-//			while(1)
-//			{
-//				char skip;
-//				if((fread(&skip, sizeof(skip), 1, bin)) != 1) break;
-
-//				char name[255];
-//				if((fread(&name, sizeof(name), 1, bin)) != 1) break;
-
-//				char filePath[MAX_PATH_LENGTH];
-//				snprintf(filePath, sizeof(filePath), "%s\\%s", path, name);
-
-//				FILE *file = fopen(filePath, "wb");
-
-//				if(file == NULL)
-//				{
-//					perror("Error creating a file");
-//					return -1;
-//				}
-
-//				long size;
-//				fread(&size, sizeof(size), 1, bin);
-
-//				char data[size];
-//				fread(&data, 1, sizeof(data), bin);
-
-//				fwrite(&data, 1, sizeof(data), file);
-//				fclose(file);
-//			}
-
-//			fclose(bin);
-//		}
-//	}
-
-
-//	return 0;
-//}
-
-char *getpPathFromName(const char *name)
+void getDirFromPath(const char *path, char *dir)
 {
-	char path[MAX_PATH_LENGTH];
+	char *copy = strdup(path);
+	strcpy(dir, dirname(copy));
+	free(copy);
+}
 
-	char temp[strlen(name)];
-	strncpy(temp, name, sizeof(temp));
-	char *token = strtok(temp, "\\");
+void getNameFromPath(const char *path, char *name)
+{
+	char *copy = strdup(path);
+	strcpy(name, basename(copy));
+	free(copy);
+}
+
+void getNameFromDir(const char *dir, char *name)
+{
+	char *copy = strdup(dir);
+	char *token = strtok(copy, "\\");
 
 	while(token != NULL)
 	{
-		snprintf(path, sizeof(path), "\\%s", token);
+		strcpy(name, token);
 		token = strtok(NULL, "\\");
 	}
-
-	return path;
+	free(copy);
 }
 
-#define EMPTY_ARG (remove == 0 && filter == NULL && name == NULL && path == NULL)
-#define NOT_EMPTY_ARG (remove != 0 || filter != NULL || name != NULL || path != NULL)
+void getSizeFile(FILE *file, long *size)
+{
+	fseek(file, 0, SEEK_END);
+	*size = ftell(file);
+	fseek(file, 0, SEEK_SET);
+}
+
+void pack(FILE *don, const char *path, char *name)
+{
+	FILE *file = fopen(path, "rb");
+
+	if(file == NULL)
+	{
+		fprintf(stderr, "Error to open .don : %s\n", path);
+		return ;
+	}
+
+	char skip = '\O';
+
+	long size;
+	getSizeFile(file, &size);
+
+	char data[size];
+	fread(&data, sizeof(data), 1, file);
+
+	fwrite(&skip, 1, sizeof(skip), don);
+
+	char fname[MAX_PATH_LENGTH];
+	strcpy(fname, name);
+
+	printf("fname = %s", fname);
+
+	fwrite(&fname, 1, MAX_PATH_LENGTH, don);
+
+	fwrite(&size, 1, sizeof(size), don);
+
+	fwrite(&data, 1, sizeof(data), don);
+
+	fclose(file);
+}
+
+void unpack(const char *dpath)
+{
+	FILE *don = fopen(dpath, "rb");
+
+	printf("don path = %s\n", dpath);
+
+	if(don == NULL)
+	{
+		fprintf(stderr, "Error to open .don : %s\n", dpath);
+		return ;
+	}
+
+	while(1)
+	{
+		char skip;
+		if((fread(&skip, sizeof(skip), 1, don)) != 1) break;
+
+		char name[MAX_PATH_LENGTH];
+		if((fread(&name, sizeof(name), 1, don)) != 1) break;
+
+		printf("file name = %s\n", name);
+
+		long size;
+		if((fread(&size, sizeof(size), 1, don)) != 1) break;
+
+		char data[size];
+		if((fread(&data, sizeof(data), 1, don)) != 1) break;
+
+		char dir[MAX_PATH_LENGTH];
+
+		getDirFromPath(dpath, dir);
+
+		char path[strlen(dir) + strlen(name) + 6];
+		snprintf(path, sizeof(path), "%s\\%s", dir, name);
+
+		printf("path file = %s\n", path);
+
+		FILE *file = fopen(path, "wb");
+
+		if(file == NULL)
+		{
+			fprintf(stderr, "Error to open .don : %s\n", dpath);
+			fclose(don);
+			return ;
+		}
+
+		fwrite(&data, 1, sizeof(data), file);
+
+		fclose(file);
+	}
+
+	fclose(don);
+}
+
+void withArg(const int *action, char *dir, const int *argc, char *argv[],
+			 int start, char *name, char *filter, const int *erase)
+{
+	DIR *folder;
+	struct dirent *files;
+
+	if(strcmp(dir, "") == 0)
+	{
+		getcwd(dir, MAX_PATH_LENGTH);
+	}
+
+	folder = opendir(dir);
+
+	if(folder == NULL)
+	{
+		return ;
+	}
+
+	if((*action) == 1)
+	{
+		FILE *don;
+
+		if(strcmp(name, "") == 0)
+		{
+			getNameFromDir(dir, name);
+		}
+
+		char dpath[strlen(dir) + strlen(name) + 6];
+		snprintf(dpath, sizeof(dpath), "%s\\%s.don", dir, name);
+
+		don = fopen(dpath, "wb");
+
+		if(don == NULL)
+		{
+			return ;
+		}
+
+		while((files = readdir(folder)) != NULL)
+		{
+			if(strstr(files->d_name, name) != NULL) continue;
+
+			if(strcmp(files->d_name, ".") == 0 || strcmp(files->d_name, "..") == 0) continue;
+
+			if(filter == NULL ? "1" : strstr(files->d_name, filter))
+			{
+
+				printf("name = %s\n", files->d_name);
+				char fpath[strlen(dir) + strlen(files->d_name) + 5];
+				snprintf(fpath, sizeof(fpath), "%s\\%s", dir, files->d_name);
+				pack(don, fpath, files->d_name);
+
+				if(*erase)
+				{
+					remove(fpath);
+				}
+			}
+		}
+
+		fclose(don);
+	}
+	else
+	{
+		while((files = readdir(folder)) != NULL)
+		{
+			if((strstr(files->d_name, (filter == NULL) ? "" : filter)) != NULL
+				&& (strstr(files->d_name, ".don")) != NULL)
+			{
+				char dpath[strlen(dir) + strlen(files->d_name) + 5];
+				snprintf(dpath, sizeof(dpath), "%s\\%s", dir, files->d_name);
+				unpack(dpath);
+
+				if(*erase)
+				{
+					remove(dpath);
+				}
+			}
+		}
+	}
+
+	closedir(folder);
+}
+
+void withoutArg(const int *action, char *dir, const int *argc, char *argv[], int start)
+{
+	if((*action) == 1)
+	{
+		FILE *don;
+
+		getcwd(dir, MAX_PATH_LENGTH);
+
+		char name[MAX_PATH_LENGTH];
+		getNameFromPath(dir, name);
+
+		printf("name don = %s\n", name);
+
+		char path[strlen(dir) + strlen(name) + 5];
+		sprintf(path, "%s\\%s.don", dir, name);
+
+		printf("path don = %s\n", path);
+
+		don = fopen(path, "wb");
+
+		if(don == NULL)
+		{
+			fprintf(stderr, "Error to open .don : %s\n", path);
+			return ;
+		}
+
+		for(int i = start; i < (*argc); i++)
+		{
+			getNameFromPath(argv[i], name);
+			pack(don, argv[i], name);
+		}
+
+		fclose(don);
+	}
+	else
+	{
+		for(int i = start; i < (*argc); i++)
+		{
+			if((strstr(argv[i], ".don")) != NULL)
+			{
+				unpack(argv[i]);
+			}
+		}
+	}
+}
+
+#define EMPTY_ARG (erase == 0 && filter == NULL && strcmp(name, "") == 0 && strcmp(dir, "") == 0)
+#define NOT_EMPTY_ARG (erase != 0 || filter != NULL || strcmp(name, "") != 0 || strcmp(dir, "") != 0)
 
 int main(int argc, char *argv[])
 {
 	int action = 0;
 	char *filter = NULL;
-	char *name = NULL;
-	int remove = 0;
-	int size = 10;
+	int erase = 0;
 
-	char *path = NULL;
+	char name[MAX_PATH_LENGTH];
+	memset(name, 0, sizeof(name));
+
+	char dir[MAX_PATH_LENGTH];
+	memset(dir, 0, sizeof(dir));
 
 	struct option data[] = {
 		{"pack", no_argument, 0, 'p'},
 		{"unpack", no_argument, 0, 'u'},
 		{"name", required_argument, 0, 'n'},
-		{"size", required_argument, 0, 's'},
 		{"filter", required_argument, 0, 'f'},
-		{"remove", no_argument, &remove, 'r'},
+		{"erase", no_argument, 0, 'e'},
 		{"dir", required_argument, 0, 'd'},
 		{0, 0, 0, 0}
 	};
 
 	int opt;
-	while((opt = getopt_long(argc, argv, "pun:f:s:rd:", data, NULL)) != -1)
+	while((opt = getopt_long(argc, argv, "pun:f:ed:", data, NULL)) != -1)
 	{
 		switch(opt)
 		{
@@ -207,23 +297,22 @@ int main(int argc, char *argv[])
 				action = 2;
 				break;
 			case 'n':
-				name = optarg;
+				strncpy(name, optarg, sizeof(name));
 				break;
 			case 'f':
 				filter = optarg;
 				break;
-			case 's':
-				size = atoi(optarg);
 			case 'd':
-				path = optarg;
+				strncpy(dir, optarg, sizeof(dir));
+				break;
+			case 'e':
+				erase = 1;
 				break;
 			default:
 				fprintf(stderr, "Unknown option: %c\n", opt);
 				return -1;
 		}
 	}
-
-	char *arg[(action == 0) ? argc : 1];
 
 	if(action == 0 && argc == 1) // не вказан
 	{
@@ -234,53 +323,28 @@ int main(int argc, char *argv[])
 	{
 		if(action != 0 && NOT_EMPTY_ARG) // вказан + аргументи
 		{
-			// туто дивимось чого не хватає чи є path
-
-			if(path == NULL)
-			{
-
-			}
-
-			//
+			withArg(&action, dir, &argc, argv, 2, name, filter, &erase);
 		}
 		else if(action != 0 && argc == 2) // вказаний
 		{
-			if(action == 1)
-			{
-
-			}
-			else
-			{
-
-			}
+			withArg(&action, dir, &argc, argv, 2, name, filter, &erase);
 		}
 		else if(action != 0 && EMPTY_ARG && argc > 2) // вказан + файли
 		{
-
-			if(action == 1)
-			{
-
-			}
-			else
-			{
-
-			}
-			for(int i = optind + 1; i < argc; i++)
-			{
-				arg[i] = argv[i];
-
-				if((strstr(argv[i], ".don")) != NULL) action = 2;
-			}
+			withoutArg(&action, dir, &argc, argv, 2);
 		}
 		else if(action == 0 && EMPTY_ARG) // не вказан + файли
 		{
 			action = 1;
-			for(int i = optind; i < argc; i++)
+			for(int i = 1; i < argc; i++)
 			{
-				arg[i] = argv[i];
-										// переделать шоб або те або те
-				if((strstr(argv[i], ".don")) != NULL) action = 2;
+				if(strstr(argv[i], ".don"))
+				{
+					action = 2;
+					break;
+				}
 			}
+			withoutArg(&action, dir, &argc, argv, 1);
 		}
 		else if(action == 0 && NOT_EMPTY_ARG) // не вказан + аргументи
 		{
@@ -289,5 +353,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	getchar();
 	return 0;
 }
