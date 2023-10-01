@@ -29,10 +29,10 @@ Please note the following regarding command-line usage:
 Here are examples of how to use the command-line parameters:
 
 
-```Quick-Packer --pack --name SpritePack --dir C:/path/to/file/ --filter png```
-```Quick-Packer -p C:/path/to/files/file.txt```
-```Quick-Packer -u -d C:/path/to/file/ -e -f SpritePack1```
-```Quick-Packer C:/path/to/files/file1.txt C:/path/to/files/file2.txt C:/path/to/files/file3.txt```
+```Quick-Packer --pack --name SpritePack --dir C:/path/to/file/ --filter png```  
+```Quick-Packer -p C:/path/to/files/file.txt```  
+```Quick-Packer -u -d C:/path/to/file/ -e -f SpritePack1```  
+```Quick-Packer C:/path/to/files/file1.txt C:/path/to/files/file2.txt C:/path/to/files/file3.txt```  
 ```Quick-Packer -u```
 
 **Tip** - it can be used in conjunction with various libraries, for example, to upload photos using [stb-image](https://github.com/nothings/stb/tree/master), or to upload audio files using [PortAudio](https://github.com/PortAudio/portaudio).
